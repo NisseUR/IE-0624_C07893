@@ -1,57 +1,48 @@
 #include <pic14/pic12f683.h>
-#include <stdint.h>
-#include <stdio.h>
 
-//To compile:
-//sdcc -mpic14 -p16f675 blink.c
- 
-//To program the chip using picp:
-//Assuming /dev/ttyUSB0 is the serial port.
- 
-//Erase the chip:
-//picp /dev/ttyUSB0 16f887 -ef
- 
-//Write the program:
-//picp /dev/ttyUSB0 16f887 -wp blink.hex
- 
-//Write the configuration words (optional):
-//picp /dev/ttyUSB0 16f887 -wc 0x2ff4 0x3fff
- 
-//Doing it all at once: erasing, programming, and reading back config words:
-//picp /dev/ttyUSB0 16f887 -ef -wp blink.hex -rc
- 
-//To program the chip using pk2cmd:
-//pk2cmd -M -PPIC16f887 -Fblink.hex
+typedef unsigned int word;
+word __at 0x2007 __CONFIG = (_WDT_OFF & _MCLRE_OFF);
 
+#define BUTTON GP5
+#define COMMON_CATHODE GP4
+#define BCD_PINS 0x0F // Los pines BCD están en los 4 bits menos significativos de GPIO
 
-void delay (unsigned inttiempo);
- 
-void main(void)
-{
+unsigned const char num[10] = {
+    0x3F, // 0
+    0x06, // 1
+    0x5B, // 2
+    0x4F, // 3
+    0x66, // 4
+    0x6D, // 5
+    0x7D, // 6
+    0x07, // 7
+    0x7F, // 8
+    0x6F  // 9
+};
 
-    TRISIO = 0b00000000; //Poner todos los pines como salidas
-	GPIO = 0x00; //Poner pines en bajo
- 
-    unsigned int time = 100;
-    unsigned int num_random = 0;
- 
-    //Loop forever
-    while ( 1 )
-    {
-			GP0 = 0x00;
-			delay(time);
-
-			GP0 = ~GP0;
-			delay(time);
-    }
- 
+void delay(unsigned int tiempo) {
+    unsigned int i, j;
+    for (i = 0; i < tiempo; i++)
+        for (j = 0; j < 1275; j++);
 }
 
-void delay(unsigned int tiempo)
-{
-	unsigned int i;
-	unsigned int j;
+void main(void) {
+    TRISIO = 0b00100000; // GP5 como entrada, el resto como salida
+    GPIO = 0x00; // Todos los pines en cero
 
-	for(i=0;i<tiempo;i++)
-	  for(j=0;j<1275;j++);
+    while (1) {
+        if (BUTTON == 0) { // Si el botón está presionado (pull-down)
+            COMMON_CATHODE = 0; // Activar el cátodo común
+            // Mostrar "0" en el display de las unidades
+            GPIO = (GPIO & ~BCD_PINS) | num[0]; // Asegurar que solo los pines BCD cambien
+            delay(5); // Retardo para el multiplexado
+            COMMON_CATHODE = 1; // Desactivar el cátodo común
+            
+            COMMON_CATHODE = 0; // Activar el cátodo común
+            // Mostrar "0" en el display de las decenas
+            GPIO = (GPIO & ~BCD_PINS) | (num[0] << 4); // Asegurar que solo los pines BCD cambien
+            delay(5); // Retardo para el multiplexado
+            COMMON_CATHODE = 1; // Desactivar el cátodo común
+        }
+    }
 }
