@@ -63,6 +63,7 @@ void main(void) {
             delay(1); // Debounce
             if (BUTTON == 0) { // 
                     if (index >= 10) {
+                        blink99(); // blink 3 times 
                         reset(); // Reset the saved numbers after 10 numbers
                     }
                 int num;
@@ -85,16 +86,14 @@ void showNumber(int num) {
     units = num % 10;
     decimals = num / 10;
 
-    for (int i = 0; i < 100; i++) { // Incrementa este valor si es necesario
-        // Asume que cuando GP4 es bajo, se seleccionan las decenas en el demux
+    for (int i = 0; i < 100; i++) { // 
         GP4 = 0; 
-        GPIO = (decimal_digit[decimals]); // Muestra las decenas
-        delay(1); // Retardo muy breve para la multiplexación
+        GPIO = (decimal_digit[decimals]); 
+        delay(1); // delay for multiplexion 
 
-        // Asume que cuando GP4 es alto, se seleccionan las unidades en el demux
         GP4 = 1; 
-        GPIO = (unit_digit[units]); // Muestra las unidades
-        delay(1); // Retardo muy breve para la multiplexación
+        GPIO = (unit_digit[units]); 
+        delay(1);
     }
 }
 
@@ -127,7 +126,7 @@ void reset(void) {
 
 void blink99(void) {
     for (int i = 0; i < 3; i++) { // Blink 3 times
-        showNumber(99);
+        showNumber(9);
         delay(2); // Delay between blinks 
     }
 }
