@@ -1,48 +1,130 @@
 #include <pic14/pic12f683.h>
 
+
 typedef unsigned int word;
-word __at 0x2007 __CONFIG = (_WDT_OFF & _MCLRE_OFF);
+word __at 0x2007 __CONFIG = (_WDT_OFF);
 
-#define BUTTON GP5
-#define COMMON_CATHODE GP4
-#define BCD_PINS 0x0F // Los pines BCD están en los 4 bits menos significativos de GPIO
-
-unsigned const char num[10] = {
-    0x3F, // 0
-    0x06, // 1
-    0x5B, // 2
-    0x4F, // 3
-    0x66, // 4
-    0x6D, // 5
-    0x7D, // 6
-    0x07, // 7
-    0x7F, // 8
-    0x6F  // 9
+unsigned const char unit_digit[] = {    
+    0b11000000, // 0
+    0b11111001, // 1
+    0b10100100, // 2
+    0b10110000, // 3
+    0b10011001, // 4
+    0b10010010, // 5
+    0b10000010, // 6
+    0b11111000, // 7
+    0b10000000, // 8
+    0b10010000  // 9
 };
 
-void delay(unsigned int tiempo) {
+
+unsigned const char decimal_digit[] = {    
+    0b11000000, // 0
+    0b11111001, // 1
+    0b10100100, // 2
+    0b10110000, // 3
+    0b10011001, // 4
+    0b10010010, // 5
+    0b10000010, // 6
+    0b11111000, // 7
+    0b10000000, // 8
+    0b10010000  // 9
+};
+
+unsigned char saved[10] = {0};
+unsigned char index = 0;
+unsigned int seed = 0;
+int units, decimals;
+
+// Functions 
+void delay(unsigned int time);
+void showNumber(int num);
+int savedNumber(int num);
+void save(int num);
+void reset(void);
+void blink99(void);
+
+void delay(unsigned int time) {
     unsigned int i, j;
-    for (i = 0; i < tiempo; i++)
+    for (i = 0; i < time; i++) {
         for (j = 0; j < 1275; j++);
+    }
 }
 
 void main(void) {
-    TRISIO = 0b00100000; // GP5 como entrada, el resto como salida
-    GPIO = 0x00; // Todos los pines en cero
+    TRISIO = 0b00100000; // GPIO PIN5 In, the rest is Out 
+    GPIO = 0b00000000; // all out 
 
     while (1) {
-        if (BUTTON == 0) { // Si el botón está presionado (pull-down)
-            COMMON_CATHODE = 0; // Activar el cátodo común
-            // Mostrar "0" en el display de las unidades
-            GPIO = (GPIO & ~BCD_PINS) | num[0]; // Asegurar que solo los pines BCD cambien
-            delay(5); // Retardo para el multiplexado
-            COMMON_CATHODE = 1; // Desactivar el cátodo común
-            
-            COMMON_CATHODE = 0; // Activar el cátodo común
-            // Mostrar "0" en el display de las decenas
-            GPIO = (GPIO & ~BCD_PINS) | (num[0] << 4); // Asegurar que solo los pines BCD cambien
-            delay(5); // Retardo para el multiplexado
-            COMMON_CATHODE = 1; // Desactivar el cátodo común
+        if (GP5 == 0) { // pull down button
+            delay(1); // Debounce
+            if (GP5 == 0) { // 
+                    if (index >= 10) {
+                        reset(); // Reset the saved numbers after 10 numbers
+                    }
+                int num;
+                do {
+                    num = seed % 100;
+                    seed++;
+                } while (savedNumber(num));
+                showNumber(num);
+                save(num);
+                while(GP5 == 0); // wait till button is not longer pushed
+            }
+        } else {
+            showNumber(0); // show 00 while the button is not pushed 
         }
+        seed++;
+    }
+}
+
+void showNumber(int num) {
+    units = num % 10;
+    decimals = num / 10;
+
+    for (int i = 0; i < 100; i++) { // Aumenta la frecuencia de la multiplexación
+        // Activa el dígito de las decenas a través del demultiplexor
+        GP4 = 0; // Asume que GP4 bajo selecciona el dígito de las decenas
+        GPIO = decimal_digit[decimals]; // Muestra las decenas
+        delay(1); // Retardo muy breve para la multiplexación
+
+        // Activa el dígito de las unidades a través del demultiplexor
+        GP4 = 1; // Asume que GP4 alto selecciona el dígito de las unidades
+        GPIO = unit_digit[units]; // Muestra las unidades
+        delay(1); // Retardo muy breve para la multiplexación
+    }
+
+}
+
+int savedNumber(int num) {
+    for (int i = 0; i < index; i++) {
+        if (saved[i] == num) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void save(int num) {
+    saved[index] = num;
+    index++;
+    if (index >= 10) {
+        index = 0; // reset index to let new numbers in 
+    }
+}
+
+void reset(void) {
+    for (int i = 0; i < 10; i++) {
+        saved[i] = 0;
+    }
+    index = 0;
+    blink99(); 
+}
+
+
+void blink99(void) {
+    for (int i = 0; i < 3; i++) { // Blink 3 times
+        showNumber(99);
+        delay(500); // Delay between blinks 
     }
 }
