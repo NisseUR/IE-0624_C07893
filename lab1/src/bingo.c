@@ -44,28 +44,23 @@ void save(int num);
 void reset(void);
 void blink99(void);
 
-void delay(unsigned int time) {
-    unsigned int i, j;
-    for (i = 0; i < time; i++) {
-        for (j = 0; j < 1275; j++);
-    }
-}
-
 void main(void) {
     TRISIO = 0b00100000; // GPIO PIN5 In, the rest is Out 
     GPIO = 0b00000000; // all out 
 
+    // Inicializa seed con un valor basado en una lectura del temporizador o un valor cambiante
+    seed = TMR1;
+
     while (1) {
         if (GP5 == 0) { // pull down button
-            delay(1); // Debounce
-            if (GP5 == 0) { // 
-                    if (index >= 10) {
-                        reset(); // Reset the saved numbers after 10 numbers
-                    }
+            if (GP5 == 0) { 
+                if (index >= 10) {
+                    reset(); // Reset the saved numbers after 10 numbers
+                }
                 int num;
                 do {
+                    seed++; // Cambia la semilla para cada número
                     num = seed % 100;
-                    seed++;
                 } while (savedNumber(num));
                 showNumber(num);
                 save(num);
@@ -74,7 +69,6 @@ void main(void) {
         } else {
             showNumber(0); // show 00 while the button is not pushed 
         }
-        seed++;
     }
 }
 
@@ -82,19 +76,14 @@ void showNumber(int num) {
     units = num % 10;
     decimals = num / 10;
 
-    for (int i = 0; i < 100; i++) { // Aumenta la frecuencia de la multiplexación
-        // Activa el dígito de las decenas a través del demultiplexor
-        GP4 = 0; // Asume que GP4 bajo selecciona el dígito de las decenas
-        GPIO = decimal_digit[decimals]; // Muestra las decenas
-        delay(1); // Retardo muy breve para la multiplexación
-
-        // Activa el dígito de las unidades a través del demultiplexor
-        GP4 = 1; // Asume que GP4 alto selecciona el dígito de las unidades
-        GPIO = unit_digit[units]; // Muestra las unidades
-        delay(1); // Retardo muy breve para la multiplexación
+    for (int i = 0; i < 50; i++) {
+        GPIO = decimal_digit[decimals];
+        delay(1);  
+        GPIO = unit_digit[units];
+        delay(1);             
     }
-
 }
+
 
 int savedNumber(int num) {
     for (int i = 0; i < index; i++) {
@@ -125,6 +114,13 @@ void reset(void) {
 void blink99(void) {
     for (int i = 0; i < 3; i++) { // Blink 3 times
         showNumber(99);
-        delay(500); // Delay between blinks 
+        delay(10); // Delay between blinks 
+    }
+}
+
+void delay(unsigned int time) {
+    unsigned int i, j;
+    for (i = 0; i < time; i++) {
+        for (j = 0; j < 1275; j++);
     }
 }
